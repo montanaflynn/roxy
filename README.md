@@ -1,4 +1,8 @@
-# Roxy - A reverse proxy that supports custom middleware
+# Roxy - A proxy with middleware
+
+Just a simple proxy that allows you to modify HTTP requests and responses with a familiar middleware implementation. Once the project is a little more stable there will be roxy-contribs with user contributed middleware. **Use at your own risk!**
+
+### Usage
 
 ```go
 package main
@@ -35,3 +39,9 @@ func main() {
   log.Fatal(s.ListenAndServe())
 }
 ```
+
+### Roadmap
+
+- Write unit tests for everything
+- Create user configuration options
+- Integrate with etcd, consul, etc...
