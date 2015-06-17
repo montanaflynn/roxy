@@ -1,34 +1,3 @@
-// Modified version of golang HTTP reverse proxy
-// with added support for Middleware functions
-
-// Copyright (c) 2012 The Go Authors. All rights reserved.
-
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-
-//    * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//    * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 package roxy
 
 import (
@@ -41,72 +10,12 @@ import (
 	"time"
 )
 
-type Transport struct {
-	tr *http.Transport
-}
-
-func NewClient() *http.Client {
-	transport := NewTransport()
-	return &http.Client{Transport: transport}
-}
-
-func NewTransport() *Transport {
-	tr := &http.Transport{
-		DisableKeepAlives:     false,
-		MaxIdleConnsPerHost:   80000,
-		DisableCompression:    false,
-		ResponseHeaderTimeout: 30 * time.Second,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-	}
-	return &Transport{tr: tr}
-}
-
-func (t *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
-	return t.tr.RoundTrip(request)
-}
-
-func NewReverseProxy(middleware []MiddlewareFunc) *ReverseProxy {
-	director := func(request *http.Request) {
-		var upstreamProtocol string
-		p := request.Header["Roxy-Protocol"]
-		if len(p) > 0 {
-			upstreamProtocol = p[0]
-		} else {
-			upstreamProtocol = "http"
-		}
-
-		var upstreamHost string
-		h := request.Header["Roxy-Host"]
-		if len(h) > 0 {
-			upstreamHost = h[0]
-		} else {
-			upstreamHost = request.Host
-		}
-		request.URL.Scheme = upstreamProtocol
-		request.URL.Host = upstreamHost
-	}
-
-	return &ReverseProxy{
-		Transport: NewTransport(),
-		Director:  director,
-		Middleware:   middleware,
-	}
-}
-
 // MiddlewareFunc is a function that is called to process a proxy response
 // Since it has handle to the response object, it can manipulate the content
 type MiddlewareFunc func(*http.Request, *http.Response)
 
-// onExitFlushLoop is a callback set by tests to detect the state of the
-// flushLoop() goroutine.
-var onExitFlushLoop func()
-
 // ReverseProxy is an HTTP Handler that takes an incoming request and
-// sends it to another server, proxying the response back to the
-// client.
+// sends it to another server, proxying the response back to the client.
 type ReverseProxy struct {
 	// Director must be a function which modifies
 	// the request into a new request to be sent
@@ -133,6 +42,60 @@ type ReverseProxy struct {
 	// If nil, logging goes to os.Stderr via the log package's
 	// standard logger.
 	ErrorLog *log.Logger
+}
+
+// Wrap our roxy transport up all nice
+type Transport struct {
+	tr *http.Transport
+}
+
+// Implements the round trip function
+func (t *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
+	return t.tr.RoundTrip(request)
+}
+
+// Create our roxy proxy with options
+func Proxy() *ReverseProxy {
+
+	tr := &http.Transport{
+		DisableKeepAlives:     false,
+		MaxIdleConnsPerHost:   80000,
+		DisableCompression:    false,
+		ResponseHeaderTimeout: 30 * time.Second,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+	}
+
+	director := func(request *http.Request) {
+		var upstreamProtocol string
+		p := request.Header["Roxy-Protocol"]
+		if len(p) > 0 {
+			upstreamProtocol = p[0]
+		} else {
+			upstreamProtocol = "http"
+		}
+
+		var upstreamHost string
+		h := request.Header["Roxy-Host"]
+		if len(h) > 0 {
+			upstreamHost = h[0]
+		} else {
+			upstreamHost = request.Host
+		}
+		request.URL.Scheme = upstreamProtocol
+		request.URL.Host = upstreamHost
+	}
+
+	return &ReverseProxy{
+		Transport: &Transport{tr: tr},
+		Director:  director,
+	}
+}
+
+func (p *ReverseProxy) AddMiddleware(m MiddlewareFunc) {
+	p.Middleware = append(p.Middleware, m)
 }
 
 func copyHeader(dst, src http.Header) {
@@ -255,6 +218,10 @@ func (m *maxLatencyWriter) Write(p []byte) (int, error) {
 	defer m.lk.Unlock()
 	return m.dst.Write(p)
 }
+
+// onExitFlushLoop is a callback set by tests to detect the state of the
+// flushLoop() goroutine.
+var onExitFlushLoop func()
 
 func (m *maxLatencyWriter) flushLoop() {
 	t := time.NewTicker(m.latency)
