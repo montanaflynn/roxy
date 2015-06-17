@@ -2,15 +2,15 @@ box: golang
 build:
   steps:
     - setup-go-workspace
-      - script:
+    - script:
         name: go get
         code: |
           go get   
-      - script:
+    - script:
         name: go build
         code: |
           go build ./...
-      - script:
+    - script:
         name: go test
         code: |
           go test ./...
