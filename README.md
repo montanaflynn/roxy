@@ -1,10 +1,10 @@
-# Roxy [![GoDoc](https://godoc.org/github.com/montanaflynn/roxy?status.svg)](https://godoc.org/github.com/montanaflynn/roxy)
+# Roxy [![Build](https://img.shields.io/wercker/ci/montanaflynn/roxy.svg)](https://app.wercker.com/project/bykey/254e86288a0bbfe8a5aa791a89ff7beb) [![GoDoc](https://godoc.org/github.com/montanaflynn/roxy?status.svg)](https://godoc.org/github.com/montanaflynn/roxy)
 
 A lightweight proxy with a familiar middleware implementation that allows you to modify HTTP requests and responses between clients and servers. Once the project is a little more stable there will be roxy-contribs with user contributed middleware. 
 
 ### Usage
 
-Since things are in the alpha stage and quickly changing the best way to run a Roxy server is to build from source. Luckily that is very simple as long as you have git and go installed. **Use at your own risk!**
+Since things are in the alpha stage and quickly changing the best way to run a Roxy server is to build from source. **Use at your own risk!**
 
 Start the example proxy which enables CORS and logging middleware:
 
@@ -54,7 +54,9 @@ func main() {
 
 ```
 
-You can set your system or browser or even twitter app to use a proxy like Roxy. Instructions vary but for example on a mac I found `networksetup` which made it super easy to debug HTTP traffic live or get around CORS.
+### Tips
+
+You can set your system or browser or even twitter app to use a proxy like Roxy. Instructions vary but for example on a mac I found `networksetup` to be very useful.
 
 First start Roxy on port 8080.
 
